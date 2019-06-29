@@ -3,22 +3,20 @@
 import hypothesis.strategies as hp
 
 from functools              import reduce
-from hypothesis             import given, settings, event, assume, PrintSettings
+from hypothesis             import given, settings, event, assume, PrintSettings, reproduce_failure
 from hypothesis.strategies  import text, integers, floats, booleans, lists, floats \
                                  , just, dictionaries, one_of
 from math                   import isnan
 
 from jazzml import *
 
-
-any_value = [integers(), text(), just(None), booleans(), floats(), lists(integers(), 0, 10)]
-
 def gen_dictionary(depth):
+    any_value = [integers(), text(), just(None), booleans(), floats(), lists(integers(), 0, 10)]
+
     if depth > 0:
         any_value.append(gen_dictionary(depth-1))
 
     return dictionaries(text(), hp.one_of(any_value), dict, 0, 10)
-
 
 
 def dict_depth(dic):
@@ -113,7 +111,7 @@ def mk_app_parser(dic):
 
 
 
-
+@settings(print_blob=PrintSettings.ALWAYS)
 @given(gen_dictionary(5))
 def test_parser(dic):
 
@@ -121,7 +119,7 @@ def test_parser(dic):
 
     parser = mk_parser(dic)
 
-    status = parser.unDecode(dic)
+    status = parser.unDecode([], dic)
 
     assert type(status) is StatusOk
 
@@ -135,21 +133,27 @@ def test_app_parser(dic):
 
     parser = mk_app_parser(dic)
 
-    status = parser.unDecode(dic)
+    status = parser.unDecode([], dic)
 
     assert type(status) is StatusOk
 
     assert status.value == dic
 
 
+any_value = [integers(), text(), just(None), booleans(), floats(), lists(integers(), 0, 10)]
+
 @settings(print_blob=PrintSettings.ALWAYS)
 @given(hp.one_of(any_value))
+#@reproduce_failure('4.24.0', b'AAYA')
 def test_one_of(v):
     assume(type(v) is not float or not isnan(v))
+    print(v)
+    print(type(v))
+
 
     parser = one_of([Int, Str, Bool, Float, List(Int), Null])
 
-    status = parser.unDecode(v)
+    status = parser.unDecode([], v)
 
     assert type(status) is StatusOk
 
@@ -165,7 +169,7 @@ def test_optional_field(dic, key, default):
 
     parser = optional_field(key, succeed(None), default=default)
 
-    status = parser.unDecode(dic)
+    status = parser.unDecode([], dic)
 
     assert type(status) is StatusOk
 
@@ -175,9 +179,11 @@ def test_optional_field(dic, key, default):
 
     parser = optional_field(key, Int, default=default)
 
-    status = parser.unDecode(dic)
+    status = parser.unDecode([], dic)
 
     assert type(status) is StatusOk
 
     assert status.value == default + 1
+
+
 

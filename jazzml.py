@@ -5,7 +5,8 @@ import yaml
 
 class StatusMissingField:
 
-    def __init__(self, field):
+    def __init__(self, path, field):
+        self.path = path
         self.field = field
 
     def message(self):
@@ -21,7 +22,8 @@ class StatusOk:
 
 class StatusBadType:
 
-    def __init__(self, expected_type, actual_value):
+    def __init__(self, path, expected_type, actual_value):
+        self.path = path
         self.expected_type = expected_type
         self.actual_value = actual_value
 
@@ -30,12 +32,16 @@ class StatusBadType:
 
 class StatusOneOfNoDecoder:
 
+    def __init__(self, path):
+        self.path = path
+
     def message(self):
         return "one_of: no valid decoder found"
 
 class StatusNok:
 
-    def __init__(self, msg):
+    def __init__(self, path, msg):
+        self.path = path
         self.msg = msg
 
     def message(self):
@@ -52,10 +58,10 @@ class Decoder:
 
     def __mul__(self, decoder):
 
-        def decode(dic):
-            rf = self.unDecode(dic)
+        def decode(path, dic):
+            rf = self.unDecode(path, dic)
             if type(rf) is StatusOk:
-                ra = decoder.unDecode(dic)
+                ra = decoder.unDecode(path, dic)
                 if isinstance(ra, StatusOk):
                     return StatusOk(partial(rf.value, ra.value))
                 else:
@@ -66,10 +72,9 @@ class Decoder:
 
     def __matmul__(self, decoder):
 
-        def decode(dic):
-            rf = self.__mul__(decoder).unDecode(dic)
+        def decode(path, dic):
+            rf = self.__mul__(decoder).unDecode(path, dic)
             if type(rf) is StatusOk:
-                print(rf.value)
                 return StatusOk(rf.value())
             else:
                 return rf
@@ -77,13 +82,13 @@ class Decoder:
 
     def then(self, f):
 
-        def decode(dic):
-            ra = self.unDecode(dic)
+        def decode(path, dic):
+            ra = self.unDecode(path, dic)
             print(ra)
             print(ra.value)
             if type(ra) is StatusOk:
                 print(f(ra.value))
-                return f(ra.value).unDecode(dict)
+                return f(ra.value).unDecode(path, dict)
             else:
                 return ra
 
@@ -93,78 +98,68 @@ def succeed(v) : return pure(v)
 
 def fail(msg) :
 
-    def decode(dic): return StatusNok(msg)
+    def decode(path, dic): return StatusNok(path, msg)
 
     return Decoder(decode)
 
 def pure(v):
 
-    def decode(dic): return StatusOk(v)
+    def decode(path, dic): return StatusOk(v)
 
     return Decoder(decode)
 
 
-def field(field_name, decoder):
-
-    def decode(dic) :
-        if field_name in dic:
-            v = dic[field_name]
-            return decoder.unDecode(v)
-        else:
-            return StatusMissingField(field_name)
-
-    return Decoder(decode)
 
 def parse_string(str, decoder):
     dic = yaml.load(doc, Loader=yaml.FullLoader)
     print(dic)
-    r = decoder.unDecode(dic)
+    r = decoder.unDecode([], dic)
     if isinstance(r, StatusOk):
         return r.value
     else:
-        raise ValueError(r.message())
+        raise ValueError("{e} in path '{p}'".format(e=r.message(), p=r.path))
 
 
-def decode_int(v):
+def decode_int(path, v):
     if type(v) is int:
         return StatusOk(v)
     else:
-        return StatusBadType('int', v)
+        return StatusBadType(path, 'int', v)
 
-def decode_str(v):
+def decode_str(path, v):
     if type(v) is str:
         return StatusOk(v)
     else:
-        return StatusBadType('str', v)
+        return StatusBadType(path, 'str', v)
 
 
-def decode_bool(v):
+def decode_bool(path, v):
     if type(v) is bool:
         return StatusOk(v)
     else:
-        return StatusBadType('bool', v)
+        return StatusBadType(path, 'bool', v)
 
 
-def decode_float(v):
+def decode_float(path, v):
     if type(v) is float:
         return StatusOk(v)
     else:
-        return StatusBadType('float', v)
+        return StatusBadType(path, 'float', v)
 
-def decode_null(v):
+def decode_null(path, v):
     if v is None:
         return StatusOk(v)
     else:
-        return StatusBadType('None', v)
+        return StatusBadType(path, 'None', v)
 
 
 def nullable(decoder):
 
-    def decode(dic):
+    def decode(path, dic):
         if dic is None:
             return StatusOk(None)
         else:
-            return decoder.unDecode(dic)
+            return decoder.unDecode(path, dic)
 
     return Decoder(decode)
 
@@ -173,21 +168,23 @@ def nullable(decoder):
 
 def field(field_name, decoder):
 
-    def decode(dic) :
+    def decode(path, dic) :
         if field_name in dic:
             v = dic[field_name]
-            return decoder.unDecode(v)
+            path.append(field_name)
+            return decoder.unDecode(path, v)
         else:
-            return StatusMissingField(field_name)
+            return StatusMissingField(path, field_name)
 
     return Decoder(decode)
 
 def optional_field(field_name, decoder, default=None):
 
-    def decode(dic) :
+    def decode(path, dic) :
         if field_name in dic:
             v = dic[field_name]
-            return decoder.unDecode(v)
+            path.append(field_name)
+            return decoder.unDecode(path, v)
         else:
             return StatusOk(default)
 
@@ -197,17 +194,17 @@ def optional_field(field_name, decoder, default=None):
 
 def List(decoder):
 
-    def decode(l):
+    def decode(path, l):
         if type(l) is list:
             rl = []
-            for ra in map(decoder.unDecode, l):
+            for ra in map(partial(decoder.unDecode, path), l):
                 if type(ra) is StatusOk:
                     rl.append(ra.value)
                 else:
                     return ra
             return StatusOk(rl)
         else:
-            return StatusBadType("list", l)
+            return StatusBadType(path, "list", l)
 
 
 
@@ -215,12 +212,12 @@ def List(decoder):
 
 def one_of(decoders):
 
-    def decode(dic):
+    def decode(path, dic):
         for decoder in decoders:
-            ra = decoder.unDecode(dic)
+            ra = decoder.unDecode(path, dic)
             if type(ra) is StatusOk:
                 return ra
-        return StatusOneOfNoDecoder()
+        return StatusOneOfNoDecoder(path)
 
     return Decoder(decode)
 
@@ -233,10 +230,10 @@ Null = Decoder(decode_null)
 
 
 def mapn(f, *decoders):
-    def decode(dic):
+    def decode(path, dic):
         ras = []
         for decoder in decoders:
-            ra = decoder.unDecode(dic)
+            ra = decoder.unDecode(path, dic)
             if type(ra) is StatusOk:
                 ras.append(ra.value)
             else:
