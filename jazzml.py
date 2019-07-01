@@ -50,7 +50,8 @@ class StatusNok:
 
 
 class Decoder:
-
+    '''Main Decoder class
+    '''
     unDecode = None
 
     def __init__(self, f):
@@ -81,7 +82,8 @@ class Decoder:
         return Decoder(decode)
 
     def then(self, f):
-
+        ''' Create a Decoder that depends on previous results.
+        '''
         def decode(path, dic):
             ra = self.unDecode(path, dic)
             print(ra)
@@ -94,15 +96,23 @@ class Decoder:
 
         return Decoder(decode)
 
-def succeed(v) : return pure(v)
+def succeed(v) :
+    '''A decoder that always succeeds and produce the given value.
+    '''
+    return pure(v)
 
 def fail(msg) :
+    '''A decoder that always fails with a specific error message.
+    '''
 
     def decode(path, dic): return StatusNok(path, msg)
 
     return Decoder(decode)
 
 def pure(v):
+    '''A decoder that always succeeds and produce the given value.
+    Identical to 'succeed()'
+    '''
 
     def decode(path, dic): return StatusOk(v)
 
@@ -120,33 +130,33 @@ def parse_string(str, decoder):
         raise ValueError("{e} in path '{p}'".format(e=r.message(), p=r.path))
 
 
-def decode_int(path, v):
+def __decode_int(path, v):
     if type(v) is int:
         return StatusOk(v)
     else:
         return StatusBadType(path, 'int', v)
 
-def decode_str(path, v):
+def __decode_str(path, v):
     if type(v) is str:
         return StatusOk(v)
     else:
         return StatusBadType(path, 'str', v)
 
 
-def decode_bool(path, v):
+def __decode_bool(path, v):
     if type(v) is bool:
         return StatusOk(v)
     else:
         return StatusBadType(path, 'bool', v)
 
 
-def decode_float(path, v):
+def __decode_float(path, v):
     if type(v) is float:
         return StatusOk(v)
     else:
         return StatusBadType(path, 'float', v)
 
-def decode_null(path, v):
+def __decode_null(path, v):
     if v is None:
         return StatusOk(v)
     else:
@@ -167,7 +177,8 @@ def nullable(decoder):
 
 
 def field(field_name, decoder):
-
+    '''Decode specific field in a json/yaml object.
+    '''
     def decode(path, dic) :
         if field_name in dic:
             v = dic[field_name]
@@ -179,6 +190,9 @@ def field(field_name, decoder):
     return Decoder(decode)
 
 def optional_field(field_name, decoder, default=None):
+    '''Decode specific field in a json/yaml object.
+    If the field does not exist, produce the value of 'default'.
+    '''
 
     def decode(path, dic) :
         if field_name in dic:
@@ -193,6 +207,9 @@ def optional_field(field_name, decoder, default=None):
 
 
 def List(decoder):
+    '''Decoder json/yaml list a list of values to a python list.
+    The given decoder is use used to decode the elements of the list
+    '''
 
     def decode(path, l):
         if type(l) is list:
@@ -211,7 +228,10 @@ def List(decoder):
     return Decoder(decode)
 
 def one_of(decoders):
-
+    '''Apply the given decoders one by one and return the value produced
+    by the first successfull decoder.
+    Fails if no decoder succeeds.
+    '''
     def decode(path, dic):
         for decoder in decoders:
             ra = decoder.unDecode(path, dic)
@@ -222,14 +242,30 @@ def one_of(decoders):
     return Decoder(decode)
 
 
-Int = Decoder(decode_int)
-Str = Decoder(decode_str)
-Bool = Decoder(decode_bool)
-Float = Decoder(decode_float)
-Null = Decoder(decode_null)
+Int = Decoder(__decode_int)
+''' Decode a json/yaml integer into an int.
+'''
+
+Str = Decoder(__decode_str)
+''' Decode a json/yaml string into an str.
+'''
+
+Bool = Decoder(__decode_bool)
+''' Decode a json/yaml boolean into an bool.
+'''
+
+Float = Decoder(__decode_float)
+''' Decode a json/yaml float into an float.
+'''
+
+Null = Decoder(__decode_null)
+''' Decode a json/yaml null into None
+'''
 
 
 def mapn(f, *decoders):
+    '''Apply the given decoders and then pass their results into the given function.
+    '''
     def decode(path, dic):
         ras = []
         for decoder in decoders:
