@@ -1,7 +1,10 @@
 
 from functools import partial
 
+import numbers
+
 import yaml
+
 
 class StatusMissingField:
 
@@ -120,8 +123,8 @@ def pure(v):
 
 
 
-def parse_string(str, decoder):
-    dic = yaml.load(doc, Loader=yaml.FullLoader)
+def parse_yaml_string(str, decoder):
+    dic = yaml.load(str, Loader=yaml.FullLoader)
     print(dic)
     r = decoder.unDecode([], dic)
     if isinstance(r, StatusOk):
@@ -155,6 +158,13 @@ def __decode_float(path, v):
         return StatusOk(v)
     else:
         return StatusBadType(path, 'float', v)
+
+def __decode_real(path, v):
+    if isinstance(v, numbers.Real):
+        return StatusOk(v)
+    else:
+        return StatusBadType(path, 'real', v)
+
 
 def __decode_null(path, v):
     if v is None:
@@ -256,6 +266,10 @@ Bool = Decoder(__decode_bool)
 
 Float = Decoder(__decode_float)
 ''' Decode a json/yaml float into an float.
+'''
+
+Real = Decoder(__decode_real)
+''' Decode a json/yaml number into an float or an int.
 '''
 
 Null = Decoder(__decode_null)
