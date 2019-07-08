@@ -55,17 +55,19 @@ class StatusNok:
 class Decoder:
     '''Main Decoder class
     '''
-    unDecode = None
+    __unDecode = None
 
     def __init__(self, f):
-        self.unDecode = f
+        self.__unDecode = f
+
+    def at(self, path, dic): return self.__unDecode(path, dic)
 
     def __mul__(self, decoder):
 
         def decode(path, dic):
-            rf = self.unDecode(path, dic)
+            rf = self.at(path, dic)
             if type(rf) is StatusOk:
-                ra = decoder.unDecode(path, dic)
+                ra = decoder.at(path, dic)
                 if isinstance(ra, StatusOk):
                     return StatusOk(partial(rf.value, ra.value))
                 else:
@@ -77,7 +79,7 @@ class Decoder:
     def __matmul__(self, decoder):
 
         def decode(path, dic):
-            rf = self.__mul__(decoder).unDecode(path, dic)
+            rf = self.__mul__(decoder).at(path, dic)
             if type(rf) is StatusOk:
                 return StatusOk(rf.value())
             else:
@@ -88,21 +90,13 @@ class Decoder:
         ''' Create a Decoder that depends on previous results.
         '''
         def decode(path, dic):
-            ra = self.unDecode(path, dic)
-            print(ra)
-            print(ra.value)
+            ra = self.at(path, dic)
             if type(ra) is StatusOk:
-                print(f(ra.value))
-                return f(ra.value).unDecode(path, dict)
+                return f(ra.value).at(path, dict)
             else:
                 return ra
 
         return Decoder(decode)
-
-def succeed(v) :
-    '''A decoder that always succeeds and produce the given value.
-    '''
-    return pure(v)
 
 def fail(msg) :
     '''A decoder that always fails with a specific error message.
@@ -112,9 +106,8 @@ def fail(msg) :
 
     return Decoder(decode)
 
-def pure(v):
-    '''A decoder that always succeeds and produce the given value.
-    Identical to 'succeed()'
+def succeed(v):
+    '''A decoder that always succeeds and returns the given value.
     '''
 
     def decode(path, dic): return StatusOk(v)
@@ -125,8 +118,7 @@ def pure(v):
 
 def parse_yaml_string(str, decoder):
     dic = yaml.load(str, Loader=yaml.FullLoader)
-    print(dic)
-    r = decoder.unDecode([], dic)
+    r = decoder.at([], dic)
     if isinstance(r, StatusOk):
         return r.value
     else:
@@ -173,17 +165,27 @@ def __decode_null(path, v):
         return StatusBadType(path, 'None', v)
 
 
-def nullable(decoder):
+def nullable(decoder, default = None):
 
     def decode(path, dic):
         if dic is None:
-            return StatusOk(None)
+            return StatusOk(default)
         else:
-            return decoder.unDecode(path, dic)
+            return decoder.at(path, dic)
 
     return Decoder(decode)
 
 
+def null(value=None):
+    '''Decode a null value into the given python value.
+    '''
+    def decode(path, dic):
+        if dic is None:
+            return StatusOk(value)
+        else:
+            return StatusBadType(path, 'Null', value)
+
+    return Decoder(decode)
 
 
 def field(field_name, decoder):
@@ -193,7 +195,7 @@ def field(field_name, decoder):
         if field_name in dic:
             v = dic[field_name]
             path.append(field_name)
-            return decoder.unDecode(path, v)
+            return decoder.at(path, v)
         else:
             return StatusMissingField(path, field_name)
 
@@ -201,14 +203,14 @@ def field(field_name, decoder):
 
 def optional_field(field_name, decoder, default=None):
     '''Decode specific field in a json/yaml object.
-    If the field does not exist, produce the value of 'default'.
+    Returns a default value if the field does not exist.
     '''
 
     def decode(path, dic) :
         if field_name in dic:
             v = dic[field_name]
             path.append(field_name)
-            return decoder.unDecode(path, v)
+            return decoder.at(path, v)
         else:
             return StatusOk(default)
 
@@ -224,7 +226,7 @@ def List(decoder):
     def decode(path, l):
         if type(l) is list:
             rl = []
-            for ra in map(partial(decoder.unDecode, path), l):
+            for ra in map(partial(decoder.at, path), l):
                 if type(ra) is StatusOk:
                     rl.append(ra.value)
                 else:
@@ -244,7 +246,7 @@ def one_of(decoders):
     '''
     def decode(path, dic):
         for decoder in decoders:
-            ra = decoder.unDecode(path, dic)
+            ra = decoder.at(path, dic)
             if type(ra) is StatusOk:
                 return ra
         return StatusOneOfNoDecoder(path)
@@ -272,22 +274,32 @@ Real = Decoder(__decode_real)
 ''' Decode a json/yaml number into an float or an int.
 '''
 
-Null = Decoder(__decode_null)
-''' Decode a json/yaml null into None
-'''
 
 
 def mapn(f, *decoders):
-    '''Apply the given decoders and then pass their results into the given function.
+    '''Apply the given decoders and then pass their results to the given function.
     '''
     def decode(path, dic):
         ras = []
         for decoder in decoders:
-            ra = decoder.unDecode(path, dic)
+            ra = decoder.at(path, dic)
             if type(ra) is StatusOk:
                 ras.append(ra.value)
             else:
                 return ra
         return StatusOk(f(*ras))
+
+    return Decoder(decode)
+
+as_dict = Decoder(lambda path, dic: StatusOk(dic))
+'''decode the json/yaml document into a dict.
+'''
+
+
+def lazy(f):
+
+    def decode(path, dic):
+        decoder = f()
+        return decoder.at(path, dic)
 
     return Decoder(decode)
