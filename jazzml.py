@@ -116,7 +116,7 @@ def succeed(v):
 
 
 
-def parse_yaml_string(str, decoder):
+def parse_yaml(str, decoder):
     dic = yaml.load(str, Loader=yaml.FullLoader)
     r = decoder.at([], dic)
     if isinstance(r, StatusOk):

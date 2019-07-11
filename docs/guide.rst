@@ -28,7 +28,7 @@ The first step is to define a decoder for the `Point` type. Such a decoder is a 
 - the expected structure of the yaml document.
 - how to create a `Point`.
 
-Once this is done, we can then use `parse_yaml_string()` to apply the decoder to the yaml document and return the value produced by the decoder.
+Once this is done, we can then use `parse_yaml()` to apply the decoder to the yaml document and return the value produced by the decoder.
 
 .. code:: python
 
@@ -36,7 +36,7 @@ Once this is done, we can then use `parse_yaml_string()` to apply the decoder to
 
   point_decoder = mapn(mkPoint, field('x', Int), field('y', Int))
 
-  point = parse_yaml_string(doc, point_decoder)
+  point = parse_yaml(doc, point_decoder)
 
 
 
@@ -76,7 +76,7 @@ For instance, we could write a decoder that sums the fields `x` and `y`.
 
   sum_decoder = mapn(lambda a, b: a+b, field('x', Int), field('y', Int))
 
-  parse_yaml_string(doc, sum_decoder) == 7  # True
+  parse_yaml(doc, sum_decoder) == 7  # True
 
 
 ----------------------
@@ -110,7 +110,7 @@ And a circle decoder would be:
 
   circle_decoder = mapn(mkCircle, field("centre", point_decoder), field("radius", Int))
 
-  circle = parse_yaml_string(doc, circle_decoder)
+  circle = parse_yaml(doc, circle_decoder)
 
 `circle_decoder` follows the same logic as our previous `point_decoder`.
 
@@ -129,17 +129,17 @@ This example shows how decoders can be composed into much larger and arbitrarily
 
 .. code:: python
 
-  parse_yaml_string('1', Int) == 1
-  parse_yaml_string('1.2', Float) == 1.2
-  parse_yaml_string('True', Bool) == True
-  parse_yaml_string('Hello World', Str) == 'Hello World'
+  parse_yaml('1', Int) == 1
+  parse_yaml('1.2', Float) == 1.2
+  parse_yaml('True', Bool) == True
+  parse_yaml('Hello World', Str) == 'Hello World'
 
 In addition, the built-in decoder `Real` decodes a value that is either a integer or a float.
 
 .. code:: python
 
-  parse_yaml_string('1', Real) == 1      # int python type
-  parse_yaml_string('1.2', Real) == 1.2  # float python type
+  parse_yaml('1', Real) == 1      # int python type
+  parse_yaml('1.2', Real) == 1.2  # float python type
 
 
 The las built-in decoder is `null()` which decode a yaml null value into a specified
@@ -147,9 +147,9 @@ python value.
 
 .. code:: python
 
-  parse_yaml_string('', null()) == None
-  parse_yaml_string('', null(42)) == 42
-  parse_yaml_string('a:', field('a', null(True))) == True
+  parse_yaml('', null()) == None
+  parse_yaml('', null(42)) == 42
+  parse_yaml('a:', field('a', null(True))) == True
 
 
 
@@ -173,7 +173,7 @@ If the yaml document contains a list of `Point`, we can build a corresponding li
         y: 20
     """
 
-  points = parse_yaml_string(doc, points_decoder)
+  points = parse_yaml(doc, points_decoder)
 
 
 ---------------------------
@@ -207,8 +207,8 @@ Attributes `x` and `y` are mandatory but `color` is optional. If the yaml doc do
   colored_point_decoder = mapn(mkColoredPoint, field('x', Int), field('y', Int),  \
     optional_field('color', Str))
 
-  colored_point = parse_yaml_string(doc_color, colored_point_decoder)
-  non_colored_point = parse_yaml_string(doc_no_color, colored_point_decoder)
+  colored_point = parse_yaml(doc_color, colored_point_decoder)
+  non_colored_point = parse_yaml(doc_no_color, colored_point_decoder)
 
 It is possible to specify a default value in case the field is missing:
 
@@ -263,8 +263,8 @@ Suppose we have a Shape hierarchy with Circles and Polygon as subclasses:
 
   shape_decoder = one_of([circle_decoder, polygon_decoder])
 
-  parse_yaml_string(doc_circle, shape_decoder) # a Circle
-  parse_yaml_string(doc_polygon, shape_decoder) # a Polygon
+  parse_yaml(doc_circle, shape_decoder) # a Circle
+  parse_yaml(doc_polygon, shape_decoder) # a Polygon
 
 
 `one_of([decoder_1, decoder_2, ..., decoder_n])` creates a decoder that sequentially applies each decoder in the given list until one of them succeeds.
@@ -301,7 +301,7 @@ Decoding a list of Shapes is straightforward:
 
   shapes_decoder = List(shape_decoder)
 
-  parse_yaml_string(doc_shapes, shapes_decoder)  # list of Shapes
+  parse_yaml(doc_shapes, shapes_decoder)  # list of Shapes
 
 
 
@@ -311,8 +311,8 @@ The next example shows how we can decode an integer (if present) or return a spe
 
   decoder = field('a', one_of([Int, null(42)]))
 
-  parse_yaml_string('a: 56', decoder) == 56
-  parse_yaml_string('a: ', decoder) == 42
+  parse_yaml('a: 56', decoder) == 56
+  parse_yaml('a: ', decoder) == 42
 
 
 ------------------------------------
@@ -331,7 +331,7 @@ The next example shows how we can decode an integer (if present) or return a spe
       b: "anything"
       """
 
-  parse_yaml_string(doc, decoder) == "your value"
+  parse_yaml(doc, decoder) == "your value"
 
 
 `fail()` creates a decoder which always fails.
@@ -345,7 +345,7 @@ The next example shows how we can decode an integer (if present) or return a spe
       b: "anything"
       """
 
-  parse_yaml_string(doc, decoder) == "your value"
+  parse_yaml(doc, decoder) == "your value"
 
 
 
@@ -353,15 +353,15 @@ The next example shows how we can decode an integer (if present) or return a spe
 
 .. code:: python
 
-  parse_yaml_string('', nullable(Int)) == None
+  parse_yaml('', nullable(Int)) == None
 
-  parse_yaml_string('', nullable(Int, 42)) == 42
+  parse_yaml('', nullable(Int, 42)) == 42
 
-  parse_yaml_string('a: 6', field('a', nullable(Int, 42))) == 6
+  parse_yaml('a: 6', field('a', nullable(Int, 42))) == 6
 
-  parse_yaml_string('a: ', field('a', nullable(Int, 42))) == 42
+  parse_yaml('a: ', field('a', nullable(Int, 42))) == 42
 
-  parse_yaml_string('a: true', field('a', nullable(Int, 42)))  # error: Bad Type
+  parse_yaml('a: true', field('a', nullable(Int, 42)))  # error: Bad Type
 
 
 ------------------------------------
@@ -404,8 +404,37 @@ Another approach is to create a little factory for our decoder and passing it to
 
   node_decoder = mk_node_decoder()
 
-  parse_yaml_string(doc, node_decoder) # Cons(h=1, t=Cons(h=2, t=None))
+  parse_yaml(doc, node_decoder) # Cons(h=1, t=Cons(h=2, t=None))
 
+
+
+
+------------------------------------
+ Another way to compose decoders
+------------------------------------
+
+For those who find `mapn()` syntax too heavy, it can be replaced by two infix operators: `*` and `@`.
+
+.. code:: python
+
+  from collections import namedtuple
+
+  mkPoint = namedtuple('Point', 'x y')
+
+  mkCircle = namedtuple('Circle', 'centre radius')
+
+  doc = """
+      centre:
+          x: 2
+          y: 5
+      radius: 10
+      """
+
+  point_decoder = succeed(mkPoint) * field('x', Int) @ field('y', Int)
+
+  circle_decoder = succeed(mkCircle) * field("centre", point_decoder) @ field("radius", Int)
+
+  circle = parse_yaml(doc, circle_decoder)
 
 
 

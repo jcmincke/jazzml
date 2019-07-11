@@ -8,10 +8,16 @@ from hypothesis.strategies  import text, integers, floats, booleans, lists, floa
                                  , just, dictionaries, one_of
 from math                   import isnan
 
+import io
+import tempfile as tf
+import yaml
+
+
 from jazzml import *
 
+
 def gen_dictionary(depth):
-    any_value = [integers(), text(), just(None), booleans(), floats(), lists(integers(), 0, 10)]
+    any_value = [integers(), text(), just(None), booleans(), floats(allow_nan=False), lists(integers(), 0, 10)]
 
     if depth > 0:
         any_value.append(gen_dictionary(depth-1))
@@ -39,7 +45,7 @@ def mk_parser(dic):
         vdec = None
         if v is None:
             event("None")
-            vdec = Null
+            vdec = null()
         elif type(v) is int:
             event("int")
             vdec = Int
@@ -60,7 +66,7 @@ def mk_parser(dic):
         else:
             raise ValueError("bad value type: {v}".format(v=v))
 
-        return field(k, vdec).then((lambda k : lambda v: pure((k, v)))(k))
+        return field(k, vdec).then((lambda k : lambda v: succeed((k, v)))(k))
 
     decoders = [go(k) for k in dic.keys()]
     return mapn(lambda *vals: dict(vals), *decoders)
@@ -74,7 +80,7 @@ def mk_app_parser(dic):
         vdec = None
         if v is None:
             event("None")
-            vdec = Null
+            vdec = null()
         elif type(v) is int:
             event("int")
             vdec = Int
@@ -95,14 +101,14 @@ def mk_app_parser(dic):
         else:
             raise ValueError("bad value type: {v}".format(v=v))
 
-        return field(k, vdec).then((lambda k : lambda v: pure((k, v)))(k))
+        return field(k, vdec).then((lambda k : lambda v: succeed((k, v)))(k))
 
     decoders = [go(k) for k in dic.keys()]
 
     if len(decoders) == 0:
         return succeed({})
 
-    prefix_decs = [pure(lambda *vals: dict(vals))] + decoders[:-1]
+    prefix_decs = [succeed(lambda *vals: dict(vals))] + decoders[:-1]
     last_dec = decoders[-1]
 
     parser = reduce(lambda d1, d2: d1 * d2, prefix_decs) @ last_dec
@@ -119,12 +125,33 @@ def test_parser(dic):
 
     parser = mk_parser(dic)
 
-    status = parser.unDecode([], dic)
+    status = parser.at([], dic)
 
     assert type(status) is StatusOk
 
     assert status.value == dic
 
+
+@settings(print_blob=PrintSettings.ALWAYS)
+@given(gen_dictionary(5))
+def test_parser_yaml_doc(dic):
+
+    event("dict depth: {d}".format(d = dict_depth(dic)))
+
+    parser = mk_parser(dic)
+
+    doc = yaml.dump(dic)
+
+    r1 = parse_yaml(doc, parser)
+
+    handle = tf.TemporaryFile()
+
+    handle.write(doc.encode('ascii'))
+    handle.seek(0)
+    r2 = parse_yaml(handle, parser)
+
+    assert r2 == dic
+    handle.close()
 
 @given(gen_dictionary(5))
 def test_app_parser(dic):
@@ -133,7 +160,7 @@ def test_app_parser(dic):
 
     parser = mk_app_parser(dic)
 
-    status = parser.unDecode([], dic)
+    status = parser.at([], dic)
 
     assert type(status) is StatusOk
 
@@ -151,9 +178,9 @@ def test_one_of(v):
     print(type(v))
 
 
-    parser = one_of([Int, Str, Bool, Float, List(Int), Null])
+    parser = one_of([Int, Str, Bool, Float, List(Int), null()])
 
-    status = parser.unDecode([], v)
+    status = parser.at([], v)
 
     assert type(status) is StatusOk
 
@@ -169,7 +196,7 @@ def test_optional_field(dic, key, default):
 
     parser = optional_field(key, succeed(None), default=default)
 
-    status = parser.unDecode([], dic)
+    status = parser.at([], dic)
 
     assert type(status) is StatusOk
 
@@ -179,11 +206,22 @@ def test_optional_field(dic, key, default):
 
     parser = optional_field(key, Int, default=default)
 
-    status = parser.unDecode([], dic)
+    status = parser.at([], dic)
 
     assert type(status) is StatusOk
 
     assert status.value == default + 1
 
+'''
+s = io.StringIO()
+
+y=yaml.YAML()
+yyaml.default_flow_style = False
 
 
+yaml.dump({'a': [1, 2]}, s)
+
+r = file("kk", r)
+
+{'': nan} != {'': nan}
+'''
