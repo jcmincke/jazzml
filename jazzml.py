@@ -92,7 +92,7 @@ class Decoder:
         def decode(path, dic):
             ra = self.at(path, dic)
             if type(ra) is StatusOk:
-                return f(ra.value).at(path, dict)
+                return f(ra.value).at(path, dic)
             else:
                 return ra
 

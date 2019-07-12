@@ -407,7 +407,38 @@ Another approach is to create a little factory for our decoder and passing it to
   parse_yaml(doc, node_decoder) # Cons(h=1, t=Cons(h=2, t=None))
 
 
+------------------------------------
+ Dynamic selection of Decoders
+------------------------------------
 
+In some cases, while the document is being decoded, it might be useful to select the next decoder to apply based on an already decoded value.
+
+For that, you can use the `then()` method.
+
+If we have a document which contains versioned data, a possible solution is:
+
+.. code:: python
+
+  doc = """
+      - version: 1
+        a: 6
+      - version: 2
+        b: "Good morning"
+      """
+
+
+  def mkVersionedDecoder(version):
+      if version == 1:
+          return field( 'a', Int)
+      elif version == 2:
+          return field('b', Str)
+      else:
+          return fail("Bad version")
+
+
+  decoder = field('version', Int).then(mkVersionedDecoder)
+
+  parse_yaml(doc, List(decoder)) == [6, "Good morning"]
 
 ------------------------------------
  Another way to compose decoders
