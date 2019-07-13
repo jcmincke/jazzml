@@ -144,6 +144,8 @@ def test_parser_yaml_doc(dic):
 
     r1 = parse_yaml(doc, parser)
 
+    assert r1 == doc
+
     handle = tf.TemporaryFile()
 
     handle.write(doc.encode('ascii'))
@@ -152,6 +154,30 @@ def test_parser_yaml_doc(dic):
 
     assert r2 == dic
     handle.close()
+
+@settings(print_blob=PrintSettings.ALWAYS)
+@given(gen_dictionary(5))
+def test_parser_json_doc(dic):
+
+    event("dict depth: {d}".format(d = dict_depth(dic)))
+
+    parser = mk_parser(dic)
+
+    doc = json.dumps(dic, separators=(',',':'))
+
+    r1 = parse_json(doc, parser)
+
+    assert r1 == dic
+    handle = tf.TemporaryFile()
+
+    handle.write(doc.encode('ascii'))
+    handle.seek(0)
+    doc1 = handle.read()
+    r2 = parse_json(doc1, parser)
+
+   # assert r2 == dic
+   # handle.close()
+
 
 @given(gen_dictionary(5))
 def test_app_parser(dic):

@@ -4,7 +4,7 @@ from functools import partial
 import numbers
 
 import yaml
-
+import json
 
 class StatusMissingField:
 
@@ -124,6 +124,15 @@ def parse_yaml(str, decoder):
     else:
         raise ValueError("{e} in path '{p}'".format(e=r.message(), p=r.path))
 
+def parse_json(str, decoder):
+    dic = json.loads(str)
+    r = decoder.at([], dic)
+    if isinstance(r, StatusOk):
+        return r.value
+    else:
+        raise ValueError("{e} in path '{p}'".format(e=r.message(), p=r.path))
+
+json.dumps([1,2,3,{'4': 5, '6': 7}], separators=(',',':'))
 
 def __decode_int(path, v):
     if type(v) is int:
