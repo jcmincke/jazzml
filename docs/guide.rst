@@ -8,7 +8,7 @@
 
 Let's start with a simple point defined by 2 coordinates: `x` and `y`.
 
-A simple python `Point` type and its possible representation in yaml are:
+A python `Point` type and its possible representation in yaml are:
 
 .. code:: python
 
@@ -21,14 +21,12 @@ A simple python `Point` type and its possible representation in yaml are:
       y: 5
       """
 
-The goal is to read this yaml doc and build a corresponding python Point value.
-
-The first step is to define a decoder for the `Point` type. Such a decoder is a python type which knows two things:
+The first step is to define a Decoder for the `Point` type. A Decoder is a python type which knows two things:
 
 - the expected structure of the yaml document.
 - how to create a `Point`.
 
-Once this is done, we can then use `parse_yaml()` to apply the decoder to the yaml document and return the value produced by the decoder.
+Once we have a Decoder, we can then use `parse_yaml()` to apply that Decoder to the yaml document and return the value produced by the Decoder.
 
 .. code:: python
 
@@ -40,37 +38,37 @@ Once this is done, we can then use `parse_yaml()` to apply the decoder to the ya
 
 
 
-`field('x', Int)` looks for a field named `x`. If the field exists then it checks the type of its value. If the value is an `int`, it returns it.
+``field('x', Int)`` looks for a field named `x`. If the field exists, it checks the type of its value. If the value is an integer, it returns it.
 
-If the field does not exist or its value is not an int, the parser fails.
+If the field does not exist or its value is not an integer, the parsing fails.
 
 .. code:: python
 
   mapn(func, decoder_1, decoder_2, ..., decoder_n)
 
-The 'mapn()' function creates a new decoder which does 3 things:
+The ``mapn()`` function creates a new Decoder which does 3 things:
 
-- it sequentially applies decoders 1 to n and collects the value each decoder produces.
-- it then calls the function `func` with the decoder values as arguments.
-- it produces the value returned by the call to `func`.
+- it sequentially applies Decoders 1 to n and collects the value each Decoder produces.
+- it then calls the function ``func`` with the Decoder values as arguments.
+- it returns the value returned by the call to ``func``.
 
-So, the type of the value produced by the decoder created by `mapn(func, ...)` is the return type of `func`.
+So, the type of the value returned by the ``mapn(func, ...)`` Decoder is the return type of ``func``.
 
-If any given decoder fails, the decoder returned by `mapn()` fails as well.
+If any given Decoder fails, the the ``mapn(func, ...)`` Decoder fails as well.
 
 
-So looking again at our point decoder:
+So looking again at our `Point` Decoder:
 
 .. code:: python
 
   point_decoder = mapn(mkPoint, field('x', Int), field('y', Int))
 
-It looks into the yaml document for an integer field named `x`, then for an integer field named `y`. If these fields exist and contain integers, it calls the constructor `mkPoint`.
+It looks into the yaml document for an integer field named `x`, then for an integer field named `y`. If these fields exist and both contain integers, ``point_decoder`` calls the constructor ``mkPoint``.
 
 
-It is important to note that the function `func` given to  `mapn()` does not have to be a constructor. It can be any function which takes as many arguments as the number of given decoders.
+It is important to note that the function ``func`` passed given to ``mapn()`` does not have to be a constructor. It can be any function which takes as many arguments as the number of Decoders arguments.
 
-For instance, we could write a decoder that sums the fields `x` and `y`.
+For instance, we could write a Decoder that sums the fields `x` and `y`.
 
 .. code:: python
 
@@ -83,7 +81,7 @@ For instance, we could write a decoder that sums the fields `x` and `y`.
  Decoding nested types
 ----------------------
 
-Suppose we want to decode a value representing a circle. A circle is defined a point (its centre) and a radius.
+Suppose we want to decode a value representing a circle. A circle is defined by a point (its centre) and a radius.
 
 .. code:: python
 
@@ -104,7 +102,7 @@ A yaml representation of a circle could be:
       radius: 10
       """
 
-And a circle decoder would be:
+And a `Circle` Decoder would be:
 
 .. code:: python
 
@@ -112,19 +110,19 @@ And a circle decoder would be:
 
   circle = parse_yaml(doc, circle_decoder)
 
-`circle_decoder` follows the same logic as our previous `point_decoder`.
+``circle_decoder`` follows the same logic as our previous ``point_decoder``.
 
-It looks for a field named `centre` and tries to decode its value using `point_decoder`.
+It looks for a field named `centre` and tries to decode its value using ``point_decoder``.
 Thus, it expects the field `centre` to contain a composite value of type `Point`.
 
-This example shows how decoders can be composed into much larger and arbitrarily complex decoders.
+This example shows how Decoders can be composed into much larger and arbitrarily complex Decoders.
 
 
 ------------------------
  Decoding pimitive types
 ------------------------
 
-`jazzml` define built-in decoders for yaml primitive types: `Int`, `Float`, `String`, `Bool`.
+`jazzml` define built-in Decoders for primitive types: `Int`, `Float`, `String`, `Bool`.
 
 
 .. code:: python
@@ -134,7 +132,7 @@ This example shows how decoders can be composed into much larger and arbitrarily
   parse_yaml('True', Bool) == True
   parse_yaml('Hello World', Str) == 'Hello World'
 
-In addition, the built-in decoder `Real` decodes a value that is either a integer or a float.
+In addition, the built-in Decoder `Real` decodes a value that is either a integer or a float.
 
 .. code:: python
 
@@ -142,7 +140,7 @@ In addition, the built-in decoder `Real` decodes a value that is either a intege
   parse_yaml('1.2', Real) == 1.2  # float python type
 
 
-The las built-in decoder is `null()` which decode a yaml null value into a specified
+The last built-in Decoder is `null()` which decodes a yaml null value into a specified
 python value.
 
 .. code:: python
@@ -160,7 +158,7 @@ python value.
 ----------------
 
 
-If the yaml document contains a list of `Point`, we can build a corresponding list decoder:
+If the yaml document contains a list of values, we can build a corresponding list Decoder:
 
 .. code:: python
 
@@ -182,7 +180,8 @@ If the yaml document contains a list of `Point`, we can build a corresponding li
 
 Let's consider a colored point having ef 3 attributes `x`, `y` and `color`.
 
-Attributes `x` and `y` are mandatory but `color` is optional. If the yaml doc does not contain it, the decoder will set it to `None`or to a default value defined by the user.
+Attributes `x` and `y` are mandatory but `color` is optional. To decode a potentially missig field ``optional_field()`` can be used. It creates a field Decoder which, in case the field is absent from the document, wil set it to `None` or to a default value defined by the user.
+
 
 .. code:: python
 
@@ -222,7 +221,9 @@ It is possible to specify a default value in case the field is missing:
  Choosing between various representations
 -----------------------------------------
 
-Suppose we have a Shape hierarchy with Circles and Polygon as subclasses:
+Choosing between various representation is necessary in presence of hierarchies.
+
+For instance, a Shape hierarchy with Circles and Polygon as subclasses:
 
 .. code:: python
 
@@ -267,9 +268,9 @@ Suppose we have a Shape hierarchy with Circles and Polygon as subclasses:
   parse_yaml(doc_polygon, shape_decoder) # a Polygon
 
 
-`one_of([decoder_1, decoder_2, ..., decoder_n])` creates a decoder that sequentially applies each decoder in the given list until one of them succeeds.
+``one_of([decoder_1, decoder_2, ..., decoder_n])`` creates a Decoder that sequentially applies each Decoder until one of them succeeds.
 
-If all decoders fail, then the decoding fails.
+If all Decoders fail, then the decoding fails.
 
 Decoding a list of Shapes is straightforward:
 
@@ -316,10 +317,10 @@ The next example shows how we can decode an integer (if present) or return a spe
 
 
 ------------------------------------
- Other interesting built-in decoders
+ Other interesting built-in Decoders
 ------------------------------------
 
-`succeed()` creates a decoder which always succeeds and produces a given value, whatever the document.
+``succeed(v)`` creates a Decoder which always succeeds and return the given value `v`, whatever the document.
 
 
 .. code:: python
@@ -334,7 +335,7 @@ The next example shows how we can decode an integer (if present) or return a spe
   parse_yaml(doc, decoder) == "your value"
 
 
-`fail()` creates a decoder which always fails.
+``fail()`` creates a Decoder which always fails.
 
 .. code:: python
 
@@ -349,7 +350,7 @@ The next example shows how we can decode an integer (if present) or return a spe
 
 
 
-`nullable(decoder, default = value)` first looks at the document. If the document is not null, it applies the given decoder otherwise it returns the a defaut value.
+``nullable(decoder, default = value)`` first looks at the document. If the document is not null, it applies the given Decoder otherwise it returns the specified defaut value.
 
 .. code:: python
 
@@ -368,13 +369,13 @@ The next example shows how we can decode an integer (if present) or return a spe
  Decoding recursive data structures
 ------------------------------------
 
-Creating a decoder for recursive data structure can be done with `lazy()`.
+Creating a Decoder for recursive data structure can be done with ``lazy()``.
 
-The argument to `lazy()` must be a function which takes no argument and returns a decoder.
+The argument to ``lazy()`` must be a function which takes no argument and returns a Decoder.
 
 Consider the following yaml document which represents a linked list. Each node of the list contains a value (head) and a representation of the next node (tail).
 
-The last item of the list is a node whose tail is `None`.
+The last item in the list is a node with `None` as tail.
 
 .. code:: python
 
@@ -394,9 +395,9 @@ A first attempt to create a Decoder could be:
 
   node_decoder = return mapn(mkCons, field('head', Int), field('tail', nullable(node_decoder)))
 
-And python will complain that `list_decoder` is used before being defined.
+And python will complain that ``list_decoder`` is used before being defined.
 
-Another approach is to create a little factory for our decoder and passing it to `lazy()`.
+Another approach is to create a little factory for our Decoder and to pass it to ``lazy()``.
 
 .. code:: python
 
@@ -411,11 +412,11 @@ Another approach is to create a little factory for our decoder and passing it to
  Dynamic selection of Decoders
 ------------------------------------
 
-In some cases, while the document is being decoded, it might be useful to select the next decoder to apply based on an already decoded value.
+In some cases, it might be useful to dynamically select the next Decoder to apply based on an already decoded value.
 
-For that, you can use the `then()` method.
+For that, you can use the ``then()`` method.
 
-If we have a document which contains versioned data, a possible solution is:
+If we have a document which contains versioned data, a possible solution to decode it is:
 
 .. code:: python
 
@@ -441,7 +442,7 @@ If we have a document which contains versioned data, a possible solution is:
   parse_yaml(doc, List(decoder)) == [6, "Good morning"]
 
 ------------------------------------
- Another way to compose decoders
+ Another way to compose Decoders
 ------------------------------------
 
 For those who find `mapn()` syntax too heavy, it can be replaced by two infix operators: `*` and `@`.
