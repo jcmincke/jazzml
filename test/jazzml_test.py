@@ -45,7 +45,7 @@ def mk_parser(dic):
         vdec = None
         if v is None:
             event("None")
-            vdec = null()
+            vdec = null(None)
         elif type(v) is int:
             event("int")
             vdec = Int
@@ -80,7 +80,7 @@ def mk_app_parser(dic):
         vdec = None
         if v is None:
             event("None")
-            vdec = null()
+            vdec = null(None)
         elif type(v) is int:
             event("int")
             vdec = Int
@@ -204,7 +204,7 @@ def test_one_of(v):
     print(type(v))
 
 
-    parser = one_of([Int, Str, Bool, Float, List(Int), null()])
+    parser = one_of([Int, Str, Bool, Float, List(Int), null(None)])
 
     status = parser.at([], v)
 

@@ -7,3 +7,8 @@
 
 .. automodule:: jazzml
     :members:
+
+
+
+#    :special-members:
+
