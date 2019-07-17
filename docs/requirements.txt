@@ -1,1 +1,2 @@
 PyYAML==5.1.1
+sphinx-autodoc-typehints==1.6.0
