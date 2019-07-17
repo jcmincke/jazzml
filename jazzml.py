@@ -88,27 +88,31 @@ class Decoder(Generic[a]):
 
         self.__unDecode = f
 
-    def at(self: 'Decoder[a]', path: t.List[str], dic: Any) -> Status[a]:
-        '''Apply the ``self`` to a path and dictionary.
+    def at(self: 'Decoder[a]', path: t.List[str], value: Any) -> Status[a]:
+        '''Apply `self` to a path and dictionary.
+
+        Args:
+            self: The Decoder to use to decode `value`.
+            path: The current path in the document.
+            value: The value to decode.
         '''
-        return self.__unDecode(path, dic)
+        return self.__unDecode(path, value)
 
     def __mul__(self: 'Decoder[Callable[[a], b]]',
                 decoder: 'Decoder[a]') -> 'Decoder[b]':
         ''' Build a new Decoder that:
 
-        - Applies ``self`` which is expected to return a
-           function `f` that takes at least one argument.
-
-        - Applies the given decoder and passes its results to `f`.
+        - Applies `self` which is expected to return a
+           function `f` that takes at least [1..n] arguments.
+        - Partially apply `f` to the value returned by `decoder`.
+            That partial application returns a function `g`.
 
         Args:
-            decoder: The Decoder that yields a value which
-              is then passed to the
-              function returned by applying this decoder.
+            self: A Decoder that must return a function.
+            decoder: The Decoder that yields the next argument to `f`.
 
         Returns:
-            A new Decoder.
+            A new Decoder returning `g`.
         '''
         def decode(path, dic):
             rf = self.at(path, dic)
@@ -126,19 +130,18 @@ class Decoder(Generic[a]):
                    decoder: 'Decoder[a]') -> 'Decoder[b]':
         ''' Build a new Decoder that:
 
-        - Applies ``self`` which is expected to return a
-        function `f` that takes at least one argument.
-
-        - Applies the given decoder and pass its results
-        to `f`, expecting a function without any argument `g`.
+        - Applies `self` which is expected to return a
+           function `f` that takes at least [1..n] arguments.
+        - Partially apply `f` to the value returned by `decoder`.
+            That partial application returns a function `g`.
         - Call `g()`
 
         Args:
-            decoder: The Decoder that yields a value passed to self.
+            self: A Decoder that must return a function `f`.
+            decoder: The Decoder that yields the next argument to `f`.
 
         Returns:
-            A new decoder.
-
+            A new Decoder taht returns the value `g()`.
         '''
 
         def decode(path, dic):
@@ -151,11 +154,10 @@ class Decoder(Generic[a]):
 
     def then(self: 'Decoder[a]',
              f: Callable[[a], 'Decoder[b]']) -> 'Decoder[b]':
-        ''' Create a Decoder that:
+        '''Create a Decoder that:
 
-        - Applies ``self``, yielding a value `v`.
+        - Applies `self`, yielding a value `v`.
         - Constructs a new Decoder by calling `f(v)`.
-        - Apply this new Decoder.
 
         Args:
             f: A function that takes a value and returns a new Decoder.
@@ -176,6 +178,10 @@ class Decoder(Generic[a]):
 
 def fail(msg: Text) -> Decoder[Any]:
     '''A decoder that always fails with a specific error message.
+
+    Args:
+        msg: The error message.
+
     '''
 
     def decode(path, dic):
@@ -186,6 +192,10 @@ def fail(msg: Text) -> Decoder[Any]:
 
 def succeed(v: a) -> Decoder[a]:
     '''A decoder that always succeeds and returns the given value.
+
+    Args:
+        v: The value inconditionally returned by the Decoder.
+
     '''
 
     def decode(path, dic):
@@ -279,20 +289,16 @@ def __decode_null(path, v):
 
 
 def nullable(decoder: Decoder[a], default: a) -> Decoder[a]:
-    ''' Look at the value to decode. If it is null,
-    return the specified default value.
+    '''A Decoder to decode a potentially null value.
 
-    Otherwise, apply the given Decoder.
-    Expect a null value and returns the specified default value.
+    It look at the value to decode. If it is null,
+    it returns the specified default value.
 
-    Raise a ValueError the value is not a null value.
+    Otherwise, the given Decoder is applied.
 
     Args:
         decoder: The Decoder to apply if the value to decode is not null.
         default: The value returned if the value to decode is null.
-
-    Returns:
-        Either the value returned by `decoder` or the default value.
     '''
     def decode(path, dic):
         if dic is None:
@@ -304,15 +310,13 @@ def nullable(decoder: Decoder[a], default: a) -> Decoder[a]:
 
 
 def null(value: a) -> Decoder[a]:
-    '''Decode a null value into the given python value.
+    '''Decode a null value into the given value.
 
-    Raise a ValueError the value is not a null value.
+    Raise a ValueError if the value is not a null value.
 
     Args:
         value: The value to return if the value to decode is null.
 
-    Returns:
-        The specified value.
     '''
     def decode(path, dic):
         if dic is None:
@@ -321,6 +325,8 @@ def null(value: a) -> Decoder[a]:
             return StatusBadType(path, 'Null', value)
 
     return Decoder(decode)
+
+
 
 
 def field(field_name: Text, decoder: Decoder[a]) -> Decoder[a]:
@@ -348,8 +354,9 @@ def field(field_name: Text, decoder: Decoder[a]) -> Decoder[a]:
 
 def optional_field(field_name: Text, decoder: Decoder[a],
                    default: a) -> Decoder[a]:
-    '''Decode specific field in a json/yaml object.
-    Returns a default value if the field does not exist.
+    '''Decode a potentially missing field.
+
+    The Decoder returns the given default value if the field does not exist.
 
     Raise a ValueError if the Decoder fails.
 
@@ -357,9 +364,6 @@ def optional_field(field_name: Text, decoder: Decoder[a],
         field_name: The name of the expected field.
         decoder: The Decoder to decode the field value.
         default: The value to return if the field does not exist.
-
-    Returns:
-        The value returned by `decoder`.
     '''
 
     def decode(path, dic):
@@ -374,16 +378,14 @@ def optional_field(field_name: Text, decoder: Decoder[a],
 
 
 def List(decoder: Decoder[a]) -> Decoder[t.List[a]]:
-    '''Decoder json/yaml list a list of values to a python list.
-    The given decoder is use used to decode the elements of the list
+    '''Decode a list of values into a python list.
 
-    Raise a ValueError if any Decoder fail.
+    The given decoder is used to decode the elements of the list.
+
+    Raise a ValueError if the Decoder fails on any element of the list.
 
     Args:
-        decoder: The Decoder to decode teh elements of the list .
-
-    Returns:
-        A list of decoded values.
+        decoder: The Decoder to decode the elements of the list .
     '''
 
     def decode(path, l):
@@ -402,16 +404,13 @@ def List(decoder: Decoder[a]) -> Decoder[t.List[a]]:
 
 
 def one_of(decoders: t.List[Decoder[a]]) -> Decoder[a]:
-    '''Apply the given Decoders one by one and return the value produced
-    by the first successfull Decoder.
+    '''Creates a Decoder that applies the given Decoders one by one
+    and returns the value returned by the first successfull Decoder.
 
-    Fails if no decoder succeeds.
+    Fails if no Decoder succeeds.
 
     Args:
         decoders: A list of Decoders.
-
-    Returns:
-        A Decoder that yields the value returned by one of the given decoders
     '''
     def decode(path, dic):
         for decoder in decoders:
@@ -428,31 +427,30 @@ Int: Decoder[int] = Decoder(__decode_int)
 '''
 
 Str: Decoder[str] = Decoder(__decode_str)
-''' Decode a json/yaml string into an str.
+''' Decode a json/yaml string into a str.
 '''
 
 Bool: Decoder[bool] = Decoder(__decode_bool)
-''' Decode a json/yaml boolean into an bool.
+''' Decode a json/yaml boolean into a bool.
 '''
 
 Float: Decoder[float] = Decoder(__decode_float)
-''' Decode a json/yaml float into an float.
+''' Decode a json/yaml float into a float.
 '''
 
 Real: Decoder[numbers.Real] = Decoder(__decode_real)
-''' Decode a json/yaml number into an float or an int.
+''' Decode a json/yaml number into a float or an int.
 '''
 
 
 def mapn(f: Callable[..., a], *decoders: Decoder) -> Decoder[a]:
-    '''Apply the given Decoders and then pass their results to the given function.
+    '''Creates a Decoder that applies the given Decoders in sequence
+    and then pass their results (`v1`, `v2`, ..., `vn`) to the function `f`.
+    The Decoder returns the results of `f(v1, v2, ..., vn)`.
 
     Args:
         f: A function with as many arguments as the number of Decoders.
         *decoders: Decoders to be applied in sequence.
-
-    Returns:
-        A Decoder that yields the value returned by `f`.
     '''
     def decode(path, dic):
         ras = []
@@ -467,13 +465,16 @@ def mapn(f: Callable[..., a], *decoders: Decoder) -> Decoder[a]:
     return Decoder(decode)
 
 
-as_dict: Decoder[Dict[str, Any]] = Decoder(lambda path, dic: StatusOk(dic))
-'''Decode the json/yaml document into a dict.
+noop: Decoder[Any] = Decoder(lambda path, dic: StatusOk(dic))
+'''Decoder that returns the value to decode, unchanged.
 '''
 
 
 def lazy(f: Callable[[], Decoder[a]]) -> Decoder[a]:
-    '''Lazy doc
+    '''Create a Decoder that lazily builds another Decoder.
+
+    Args:
+        f: A factory For the lazily built Decoder.
     '''
     def decode(path, dic):
         decoder = f()

@@ -30,11 +30,16 @@ release = '0.1.0'
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
-extensions = ['sphinx_autodoc_napoleon_typehints',
-              'sphinx.ext.doctest',
+extensions = ['sphinx.ext.autodoc',
+              'sphinx.ext.napoleon',
+              'sphinx_autodoc_typehints',
               ]
-# 'sphinx.ext.autodoc',
 
+            #  'sphinx.ext.doctest',
+            #  'sphinx_autodoc_napoleon_typehints',
+            # 'sphinxcontrib.napoleon',
+# 'sphinx.ext.autodoc',
+# sphinxcontrib.napoleon
 #              'sphinx_autodoc_typehints',
 # 'sphinx.ext.napoleon',
 

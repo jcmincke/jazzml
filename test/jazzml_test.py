@@ -144,7 +144,7 @@ def test_parser_yaml_doc(dic):
 
     r1 = parse_yaml(doc, parser)
 
-    assert r1 == doc
+    assert r1 == dic
 
     handle = tf.TemporaryFile()
 
