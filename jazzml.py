@@ -111,8 +111,6 @@ class Decoder(Generic[a]):
             self: A Decoder that must return a function.
             decoder: The Decoder that yields the next argument to `f`.
 
-        Returns:
-            A new Decoder returning `g`.
         '''
         def decode(path, dic):
             rf = self.at(path, dic)
@@ -140,8 +138,6 @@ class Decoder(Generic[a]):
             self: A Decoder that must return a function `f`.
             decoder: The Decoder that yields the next argument to `f`.
 
-        Returns:
-            A new Decoder taht returns the value `g()`.
         '''
 
         def decode(path, dic):
@@ -161,9 +157,6 @@ class Decoder(Generic[a]):
 
         Args:
             f: A function that takes a value and returns a new Decoder.
-
-        Returns:
-            A new Decoder.
 
         '''
         def decode(path, dic):
@@ -236,7 +229,7 @@ def parse_json(str, decoder: Decoder[a]) -> a:
         decoder: The Decoder used to decode `doc`.
 
     Returns:
-        The value yielded by `decoder`
+        The value yielded by `decoder`.
     '''
     dic = json.loads(str)
     r = decoder.at([], dic)
