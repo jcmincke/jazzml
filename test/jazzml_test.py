@@ -19,9 +19,7 @@ from math                   import isnan
 import tempfile as tf
 import yaml
 
-
 from jazzml import *
-
 
 def gen_dictionary(depth):
     any_value = [integers(), text(), just(None), booleans(),

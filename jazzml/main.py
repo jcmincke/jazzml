@@ -9,7 +9,7 @@ file, You can obtain one at http://mozilla.org/MPL/2.0/.
 from functools import partial
 
 from typing import (Callable, TypeVar, Generic, Union,
-                    IO, Dict, Any, Text, Type)
+                    IO, Any, Text, Type)
 
 import typing as t
 
@@ -325,8 +325,6 @@ def null(value: a) -> Decoder[a]:
             return StatusBadType(path, 'Null', value)
 
     return Decoder(decode)
-
-
 
 
 def field(field_name: Text, decoder: Decoder[a]) -> Decoder[a]:
