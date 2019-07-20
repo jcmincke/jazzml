@@ -1,14 +1,21 @@
+'''
+Copyright   : (c) Jean-Christophe Mincke, 2019
 
+This Source Code Form is subject to the terms of the Mozilla Public
+License, v. 2.0. If a copy of the MPL was not distributed with this
+file, You can obtain one at http://mozilla.org/MPL/2.0/.
+'''
 
 import hypothesis.strategies as hp
 
 from functools              import reduce
-from hypothesis             import given, settings, event, assume, PrintSettings, reproduce_failure
-from hypothesis.strategies  import text, integers, floats, booleans, lists, floats \
-                                 , just, dictionaries, one_of
+from hypothesis             import (given, settings, event, assume,
+                                   PrintSettings, reproduce_failure)
+from hypothesis.strategies  import (text, integers, floats, booleans,
+                                    lists, floats, just, dictionaries,
+                                    one_of)
 from math                   import isnan
 
-import io
 import tempfile as tf
 import yaml
 
@@ -17,10 +24,12 @@ from jazzml import *
 
 
 def gen_dictionary(depth):
-    any_value = [integers(), text(), just(None), booleans(), floats(allow_nan=False), lists(integers(), 0, 10)]
+    any_value = [integers(), text(), just(None), booleans(),
+                 floats(allow_nan=False),
+                 lists(integers(), 0, 10)]
 
     if depth > 0:
-        any_value.append(gen_dictionary(depth-1))
+        any_value.append(gen_dictionary(depth - 1))
 
     return dictionaries(text(), hp.one_of(any_value), dict, 0, 10)
 
@@ -28,20 +37,18 @@ def gen_dictionary(depth):
 def dict_depth(dic):
     if type(dic) is not dict:
         return 0
-    depths = [dict_depth(dic[k])+1 for k in dic.keys()]
+    depths = [dict_depth(dic[k]) + 1 for k in dic.keys()]
     if len(depths) == 0:
         return 0
     else:
         return max(depths)
 
 
-
-
 def mk_parser(dic):
 
     def go(k):
         v = dic[k]
-        print (v)
+        print(v)
         vdec = None
         if v is None:
             event("None")
@@ -66,7 +73,7 @@ def mk_parser(dic):
         else:
             raise ValueError("bad value type: {v}".format(v=v))
 
-        return field(k, vdec).then((lambda k : lambda v: succeed((k, v)))(k))
+        return field(k, vdec).then((lambda k: lambda v: succeed((k, v)))(k))
 
     decoders = [go(k) for k in dic.keys()]
     return mapn(lambda *vals: dict(vals), *decoders)
@@ -76,7 +83,6 @@ def mk_app_parser(dic):
 
     def go(k):
         v = dic[k]
-        print (v)
         vdec = None
         if v is None:
             event("None")
@@ -101,7 +107,7 @@ def mk_app_parser(dic):
         else:
             raise ValueError("bad value type: {v}".format(v=v))
 
-        return field(k, vdec).then((lambda k : lambda v: succeed((k, v)))(k))
+        return field(k, vdec).then((lambda k: lambda v: succeed((k, v)))(k))
 
     decoders = [go(k) for k in dic.keys()]
 
@@ -116,12 +122,11 @@ def mk_app_parser(dic):
     return parser
 
 
-
 @settings(print_blob=PrintSettings.ALWAYS)
 @given(gen_dictionary(5))
 def test_parser(dic):
 
-    event("dict depth: {d}".format(d = dict_depth(dic)))
+    event("dict depth: {d}".format(d=dict_depth(dic)))
 
     parser = mk_parser(dic)
 
@@ -136,7 +141,7 @@ def test_parser(dic):
 @given(gen_dictionary(5))
 def test_parser_yaml_doc(dic):
 
-    event("dict depth: {d}".format(d = dict_depth(dic)))
+    event("dict depth: {d}".format(d=dict_depth(dic)))
 
     parser = mk_parser(dic)
 
@@ -155,15 +160,16 @@ def test_parser_yaml_doc(dic):
     assert r2 == dic
     handle.close()
 
+
 @settings(print_blob=PrintSettings.ALWAYS)
 @given(gen_dictionary(5))
 def test_parser_json_doc(dic):
 
-    event("dict depth: {d}".format(d = dict_depth(dic)))
+    event("dict depth: {d}".format(d=dict_depth(dic)))
 
     parser = mk_parser(dic)
 
-    doc = json.dumps(dic, separators=(',',':'))
+    doc = json.dumps(dic, separators=(',', ':'))
 
     r1 = parse_json(doc, parser)
 
@@ -175,14 +181,14 @@ def test_parser_json_doc(dic):
     doc1 = handle.read()
     r2 = parse_json(doc1, parser)
 
-   # assert r2 == dic
-   # handle.close()
+    assert r2 == dic
+    handle.close()
 
 
 @given(gen_dictionary(5))
 def test_app_parser(dic):
 
-    event("dict depth: {d}".format(d = dict_depth(dic)))
+    event("dict depth: {d}".format(d=dict_depth(dic)))
 
     parser = mk_app_parser(dic)
 
@@ -193,25 +199,25 @@ def test_app_parser(dic):
     assert status.value == dic
 
 
-any_value = [integers(), text(), just(None), booleans(), floats(), lists(integers(), 0, 10)]
+any_value = [integers(), text(), just(None), booleans(),
+             floats(), lists(integers(), 0, 10)]
+
 
 @settings(print_blob=PrintSettings.ALWAYS)
 @given(hp.one_of(any_value))
-#@reproduce_failure('4.24.0', b'AAYA')
 def test_one_of(v):
     assume(type(v) is not float or not isnan(v))
     print(v)
     print(type(v))
 
-
-    parser = one_of([Int, Str, Bool, Float, List(Int), null(None)])
+    parser = one_of([Int, Str, Bool, Float,
+                     List(Int), null(None)])
 
     status = parser.at([], v)
 
     assert type(status) is StatusOk
 
     assert status.value == v
-
 
 
 @settings(print_blob=PrintSettings.ALWAYS)
@@ -237,17 +243,3 @@ def test_optional_field(dic, key, default):
     assert type(status) is StatusOk
 
     assert status.value == default + 1
-
-'''
-s = io.StringIO()
-
-y=yaml.YAML()
-yyaml.default_flow_style = False
-
-
-yaml.dump({'a': [1, 2]}, s)
-
-r = file("kk", r)
-
-{'': nan} != {'': nan}
-'''
