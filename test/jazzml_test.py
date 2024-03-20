@@ -10,7 +10,7 @@ import hypothesis.strategies as hp
 
 from functools              import reduce
 from hypothesis             import (given, settings, event, assume,
-                                   PrintSettings, reproduce_failure)
+                                   reproduce_failure)
 from hypothesis.strategies  import (text, integers, floats, booleans,
                                     lists, floats, just, dictionaries,
                                     one_of)
@@ -24,12 +24,17 @@ from jazzml import *
 def gen_dictionary(depth):
     any_value = [integers(), text(), just(None), booleans(),
                  floats(allow_nan=False),
-                 lists(integers(), 0, 10)]
+                 lists(integers(), min_size=0, max_size=10)]
 
     if depth > 0:
         any_value.append(gen_dictionary(depth - 1))
 
-    return dictionaries(text(), hp.one_of(any_value), dict, 0, 10)
+    return dictionaries(
+        text(),
+        hp.one_of(any_value),
+        dict_class=dict,
+        min_size=0,
+        max_size=10)
 
 
 def dict_depth(dic):
@@ -120,7 +125,7 @@ def mk_app_parser(dic):
     return parser
 
 
-@settings(print_blob=PrintSettings.ALWAYS)
+@settings(print_blob=True)
 @given(gen_dictionary(5))
 def test_parser(dic):
 
@@ -135,7 +140,7 @@ def test_parser(dic):
     assert status.value == dic
 
 
-@settings(print_blob=PrintSettings.ALWAYS)
+@settings(print_blob=True)
 @given(gen_dictionary(5))
 def test_parser_yaml_doc(dic):
 
@@ -159,7 +164,7 @@ def test_parser_yaml_doc(dic):
     handle.close()
 
 
-@settings(print_blob=PrintSettings.ALWAYS)
+@settings(print_blob=True)
 @given(gen_dictionary(5))
 def test_parser_json_doc(dic):
 
@@ -198,10 +203,10 @@ def test_app_parser(dic):
 
 
 any_value = [integers(), text(), just(None), booleans(),
-             floats(), lists(integers(), 0, 10)]
+             floats(), lists(integers(), min_size=0, max_size=10)]
 
 
-@settings(print_blob=PrintSettings.ALWAYS)
+@settings(print_blob=True)
 @given(hp.one_of(any_value))
 def test_one_of(v):
     assume(type(v) is not float or not isnan(v))
@@ -218,7 +223,7 @@ def test_one_of(v):
     assert status.value == v
 
 
-@settings(print_blob=PrintSettings.ALWAYS)
+@settings(print_blob=True)
 @given(gen_dictionary(1), text(), integers())
 def test_optional_field(dic, key, default):
     assume(len(dic) != 0)
