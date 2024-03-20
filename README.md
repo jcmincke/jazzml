@@ -6,9 +6,9 @@ It does so by allowing the user to first specify a Decoder and then apply it to 
 
 A Decoder can be viewed as a specification of the expected structure of a json/yaml document.
 
-This 2 step strategy brings some level of implicit checking. That is, if a document structure does not conform to the Decoder, the parsing will fails.
+This 2 step strategy brings some level of implicit checking. That is, if a document structure does not conform to the Decoder, the parsing fail.
 
-Other nice features of `jazzml` includes the possibility to define Decoders for recursive data structures and to dynamically chose a Decoder based on some specific value defined by the json/yaml document.
+Other nice features of `jazzml` include the possibility to define Decoders for recursive data structures and to dynamically choose a Decoder based on some specific value defined by the json/yaml document.
 
 You'll find a more complete documentation on [readthedocs.io](https://jazzml.readthedocs.io/en/latest/api.html)
 

@@ -1,11 +1,11 @@
 '''
-Copyright   : (c) Jean-Christophe Mincke, 2019
+Copyright   : (c) Jean-Christophe Mincke, 2021-2024
 
 This Source Code Form is subject to the terms of the Mozilla Public
 License, v. 2.0. If a copy of the MPL was not distributed with this
 file, You can obtain one at http://mozilla.org/MPL/2.0/.
 '''
-
+import datetime as dt
 from functools import partial
 
 from typing import (Callable, TypeVar, Generic, Union,
@@ -17,7 +17,6 @@ import numbers
 
 import yaml
 import json
-
 
 a = TypeVar('a')
 b = TypeVar('b')
@@ -65,6 +64,19 @@ class StatusBadType(Status[a]):
     def message(self):
         return "Bad Type: expected type {e} but read value '{v}'"             \
                .format(e=self.__expected_type, v=self.__actual_value)
+
+
+class StatusBadValue(Status[a]):
+
+    def __init__(self: 'StatusBadValue[A]',
+                 path: t.List[Text],
+                 received: str,
+                 expected: str) -> None:
+        self._path = path
+        self.__msg = f'Expected: {expected} but got {received}'
+
+    def message(self: 'StatusBadValue[A]') -> str:
+        return self.__msg
 
 
 class StatusOneOfNoDecoder(Status[a]):
@@ -204,11 +216,41 @@ def succeed(v: a) -> Decoder[a]:
     return Decoder(decode)
 
 
+
+def this_str(expected: str) -> Decoder[str]:
+
+    def decode(path: t.List[str], v: Any) -> Status[str]:
+        if isinstance(v, str):
+            if v == expected:
+                return StatusOk(v)
+            else:
+                return StatusBadValue(path, expected, v)
+        else:
+            return StatusBadType(path, str, v)
+
+    return Decoder(decode)
+
+
+def date(the_format: str = '%d-%m-%Y') -> Decoder[dt.datetime]:
+
+    def decode(path: t.List[str], v: Any) -> Status[dt.datetime]:
+        if isinstance(v, str):
+            try:
+                return StatusOk(dt.datetime.strptime(v, the_format))
+            # pylint: disable = Catching too general exception Exception  (broad-exception-caught)
+            except Exception:
+                return StatusBadType(path, str, v)
+        else:
+            return StatusBadType(path, str, v)
+
+    return Decoder(decode)
+
 def parse_yaml(doc: Union[str, IO[str]], decoder: Decoder[a]) -> a:
     '''
     Decode the given yaml document with the given Decoder.
 
-    Raises a ValueError if the Decoder fails.
+    Raises:
+     ValueError: if the Decoder fails.
 
     Args:
         doc: The document to decode.
@@ -268,7 +310,7 @@ def __decode_bool(path, v):
 
 
 def __decode_float(path, v):
-    if type(v) is float:
+    if isinstance(v, (float, int)):
         return StatusOk(v)
     else:
         return StatusBadType(path, 'float', v)
@@ -291,7 +333,7 @@ def __decode_null(path, v):
 def nullable(decoder: Decoder[a], default: a) -> Decoder[a]:
     '''A Decoder to decode a potentially null value.
 
-    It look at the value to decode. If it is null,
+    It looks at the value to decode. If it is null,
     it returns the specified default value.
 
     Otherwise, the given Decoder is applied.
@@ -477,5 +519,26 @@ def lazy(f: Callable[[], Decoder[a]]) -> Decoder[a]:
     def decode(path, dic):
         decoder = f()
         return decoder.at(path, dic)
+
+    return Decoder(decode)
+
+
+def susp(decoder: Decoder[a]) -> Decoder[Callable[[], a]]:
+    '''
+    Create a Decoder that lazily parse its value.
+
+    Args:
+        decoder: A decoder.
+    '''
+    def decode(path, dic):
+        def f(_path=path, _dic=dic):
+            r = decoder.at(_path, _dic)
+
+            if isinstance(r, StatusOk):
+                return r.value
+            else:
+                raise ValueError("{e} in path '{p}'".format(e=r.message(), p=r._path))
+
+        return StatusOk(f)
 
     return Decoder(decode)
